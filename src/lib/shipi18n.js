@@ -64,6 +64,7 @@ export async function translate({
   sourceLanguage = 'en',
   targetLanguages,
   preservePlaceholders = true,
+  enablePluralization = true,
 }) {
   if (!text) throw new Error('Text is required')
   if (!targetLanguages?.length) throw new Error('At least one target language is required')
@@ -75,6 +76,7 @@ export async function translate({
       sourceLanguage,
       targetLanguages,
       preservePlaceholders,
+      enablePluralization,
     }),
   })
 }
@@ -93,6 +95,7 @@ export async function translateJSON({
   sourceLanguage = 'en',
   targetLanguages,
   preservePlaceholders = true,
+  enablePluralization = true,
 }) {
   const jsonString = typeof json === 'string' ? json : JSON.stringify(json)
 
@@ -103,6 +106,7 @@ export async function translateJSON({
       sourceLanguage,
       targetLanguages,
       preservePlaceholders,
+      enablePluralization,
       outputFormat: 'json',
     }),
   })
@@ -123,12 +127,14 @@ export async function translateLocaleFile({
   sourceLanguage = 'en',
   targetLanguages,
   preservePlaceholders = true,
+  enablePluralization = true,
 }) {
   const result = await translateJSON({
     json: content,
     sourceLanguage,
     targetLanguages,
     preservePlaceholders,
+    enablePluralization,
   })
 
   // Transform to { lang: translatedJson } format

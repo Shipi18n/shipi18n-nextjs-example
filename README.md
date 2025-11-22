@@ -14,6 +14,7 @@ This example demonstrates multiple integration patterns:
 - **API Route Proxy** - Keep your API key secure on the server
 - **100+ Languages** - Translate to any language Google Translate supports
 - **Placeholder Preservation** - Keeps `{name}`, `{{value}}`, `%s` intact
+- **i18next Pluralization** - Auto-generates CLDR-compliant plural forms
 
 ## Prerequisites
 
@@ -174,6 +175,30 @@ const translations = await translateJSON({
 // }
 ```
 
+### i18next Pluralization
+
+Shipi18n auto-generates CLDR-compliant plural forms based on each target language's rules:
+
+- **English/Spanish**: `_one`, `_other` (2 forms)
+- **Russian**: `_one`, `_few`, `_many`, `_other` (4 forms)
+- **Arabic**: `_zero`, `_one`, `_two`, `_few`, `_many`, `_other` (6 forms)
+
+```jsx
+import { translateJSON } from '@/lib/shipi18n'
+
+const result = await translateJSON({
+  json: {
+    "item_one": "{{count}} item",
+    "item_other": "{{count}} items"
+  },
+  targetLanguages: ['es', 'ru'],
+  enablePluralization: true  // enabled by default
+})
+
+// Spanish (2 forms): { item_one: "{{count}} artículo", item_other: "{{count}} artículos" }
+// Russian (4 forms): { item_one, item_few, item_many, item_other } - auto-generated!
+```
+
 ## API Reference
 
 ### `translate(options)`
@@ -186,6 +211,7 @@ Translate text to multiple languages.
 | `sourceLanguage` | string | No | Source language (default: 'en') |
 | `targetLanguages` | string[] | Yes | Target language codes |
 | `preservePlaceholders` | boolean | No | Keep placeholders intact (default: true) |
+| `enablePluralization` | boolean | No | Auto-generate i18next plural forms (default: true) |
 
 ### `translateJSON(options)`
 
@@ -197,6 +223,7 @@ Translate JSON while preserving structure.
 | `sourceLanguage` | string | No | Source language (default: 'en') |
 | `targetLanguages` | string[] | Yes | Target language codes |
 | `preservePlaceholders` | boolean | No | Keep placeholders intact (default: true) |
+| `enablePluralization` | boolean | No | Auto-generate i18next plural forms (default: true) |
 
 ## Environment Variables
 
