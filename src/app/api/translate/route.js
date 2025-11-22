@@ -1,8 +1,8 @@
-import { translate } from '@/lib/shipi18n'
+import { translate, translateJSON } from '@/lib/shipi18n'
 
 export async function POST(request) {
   try {
-    const { text, targetLanguages, preservePlaceholders = true } = await request.json()
+    const { text, targetLanguages, preservePlaceholders = true, outputFormat } = await request.json()
 
     // Validate input
     if (!text) {
@@ -25,11 +25,23 @@ export async function POST(request) {
     // - Log translations for analytics
     // - Cache translations in your database
 
-    const result = await translate({
-      text,
-      targetLanguages,
-      preservePlaceholders,
-    })
+    let result
+
+    if (outputFormat === 'json') {
+      // JSON translation - preserves structure
+      result = await translateJSON({
+        json: text,
+        targetLanguages,
+        preservePlaceholders,
+      })
+    } else {
+      // Plain text translation
+      result = await translate({
+        text,
+        targetLanguages,
+        preservePlaceholders,
+      })
+    }
 
     return Response.json(result)
   } catch (error) {

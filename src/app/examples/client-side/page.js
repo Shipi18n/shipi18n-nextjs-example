@@ -1,8 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { translate } from '@/lib/shipi18n'
 import Link from 'next/link'
+
+// Use our API route instead of calling Shipi18n directly
+// This keeps the API key secure on the server!
+async function translate({ text, targetLanguages }) {
+  const response = await fetch('/api/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, targetLanguages, preservePlaceholders: true }),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Translation failed')
+  }
+  return response.json()
+}
 
 const LANGUAGES = [
   { code: 'es', name: 'Spanish' },

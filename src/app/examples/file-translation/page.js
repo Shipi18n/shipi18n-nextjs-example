@@ -1,8 +1,26 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { translateJSON } from '@/lib/shipi18n'
 import Link from 'next/link'
+
+// Use our API route to keep the API key secure
+async function translateJSON({ json, targetLanguages }) {
+  const response = await fetch('/api/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: JSON.stringify(json),
+      targetLanguages,
+      preservePlaceholders: true,
+      outputFormat: 'json',
+    }),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Translation failed')
+  }
+  return response.json()
+}
 
 const LANGUAGES = [
   { code: 'es', name: 'Spanish' },
