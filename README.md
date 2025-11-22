@@ -47,9 +47,11 @@ cp .env.example .env.local
 Edit `.env.local`:
 
 ```env
+# Only ONE key needed!
 SHIPI18N_API_KEY=sk_live_your_api_key_here
-NEXT_PUBLIC_SHIPI18N_API_KEY=sk_live_your_api_key_here
 ```
+
+> **Note**: You only need `SHIPI18N_API_KEY`. See [Environment Variables](#environment-variables) for details.
 
 ### 4. Run Development Server
 
@@ -198,11 +200,36 @@ Translate JSON while preserving structure.
 
 ## Environment Variables
 
+**You only need ONE API key!**
+
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `SHIPI18N_API_KEY` | API key (server-side) | Yes |
-| `NEXT_PUBLIC_SHIPI18N_API_KEY` | API key (client-side) | For client components |
+| `SHIPI18N_API_KEY` | Your API key (server-side only) | **Yes** |
 | `SHIPI18N_API_URL` | API URL (optional) | No |
+
+### Why only one key?
+
+In Next.js, environment variables are **server-side only by default**. The `SHIPI18N_API_KEY` is:
+- Accessible in API routes, Server Components, and middleware
+- **Never exposed to the browser** - your key stays secure
+
+### What about `NEXT_PUBLIC_` variables?
+
+The `NEXT_PUBLIC_` prefix tells Next.js to expose a variable to the browser. **We don't recommend this** because:
+- Your API key would be visible in the browser's page source
+- Anyone could copy your key and use your quota
+
+### Recommended Architecture
+
+```
+Browser (Client Component)
+    ↓
+/api/translate (API Route - uses SHIPI18N_API_KEY securely)
+    ↓
+Shipi18n API
+```
+
+This example uses this pattern - all client-side examples call `/api/translate` instead of calling Shipi18n directly.
 
 ## Pricing
 
