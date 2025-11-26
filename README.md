@@ -1,5 +1,9 @@
 # Shipi18n Next.js Example
 
+[![CI](https://github.com/Shipi18n/shipi18n-nextjs-example/actions/workflows/ci.yml/badge.svg)](https://github.com/Shipi18n/shipi18n-nextjs-example/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub last commit](https://img.shields.io/github/last-commit/Shipi18n/shipi18n-nextjs-example)](https://github.com/Shipi18n/shipi18n-nextjs-example)
+
 A Next.js 14 application demonstrating how to integrate the [Shipi18n](https://shipi18n.com) translation API using the App Router.
 
 > **Get Started in 30 Seconds**: Sign up at [shipi18n.com](https://shipi18n.com) to get your free API key instantly. No credit card required!
