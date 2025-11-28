@@ -1,354 +1,340 @@
 /**
  * Tests for Shipi18n Next.js Example
  *
- * These tests verify the client library patterns and integration logic
- * without making actual API calls.
+ * These tests verify the client library by importing and testing actual functions.
  */
+
+import {
+  translate,
+  translateJSON,
+  translateLocaleFile,
+  healthCheck,
+  getTranslations,
+  getConfig,
+  setConfig,
+  resetConfig,
+  apiRequest
+} from '../lib/shipi18n.js';
 
 // Mock fetch globally
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+let mockFetchResponse = {};
+let mockFetchOk = true;
+let lastFetchCall = null;
 
-// Mock environment for tests
-const mockEnv = {
-  SHIPI18N_API_KEY: 'sk_test_123456',
-  SHIPI18N_API_URL: 'https://api.test.shipi18n.com'
-};
+global.fetch = jest.fn(async (url, options) => {
+  lastFetchCall = { url, options };
 
+  return {
+    ok: mockFetchOk,
+    status: mockFetchOk ? 200 : 401,
+    json: async () => mockFetchResponse
+  };
+});
+
+// Reset before each test
 beforeEach(() => {
-  mockFetch.mockClear();
+  mockFetchResponse = {};
+  mockFetchOk = true;
+  lastFetchCall = null;
+  resetConfig();
+  global.fetch.mockClear();
 });
 
-describe('Shipi18n API Client Patterns', () => {
-  describe('API URL construction', () => {
-    it('constructs correct translate endpoint URL', () => {
-      const apiUrl = mockEnv.SHIPI18N_API_URL;
-      const endpoint = '/translate';
-      const url = `${apiUrl}/api${endpoint}`;
-
-      expect(url).toBe('https://api.test.shipi18n.com/api/translate');
-    });
-
-    it('uses default API URL when not specified', () => {
-      const DEFAULT_URL = 'https://x9527l3blg.execute-api.us-east-1.amazonaws.com';
-      const apiUrl = undefined || DEFAULT_URL;
-
-      expect(apiUrl).toBe(DEFAULT_URL);
-    });
-  });
-
-  describe('Request formatting', () => {
-    it('formats basic translation request correctly', () => {
-      const request = {
-        text: 'Hello, World!',
-        sourceLanguage: 'en',
-        targetLanguages: ['es', 'fr'],
-        preservePlaceholders: true,
-        enablePluralization: true,
-      };
-
-      expect(request.text).toBe('Hello, World!');
-      expect(request.targetLanguages).toHaveLength(2);
-      expect(request.preservePlaceholders).toBe(true);
-    });
-
-    it('formats JSON translation request correctly', () => {
-      const json = { greeting: 'Hello', farewell: 'Goodbye' };
-      const jsonString = JSON.stringify(json);
-
-      expect(jsonString).toBe('{"greeting":"Hello","farewell":"Goodbye"}');
-    });
-
-    it('handles object JSON input by stringifying', () => {
-      const jsonObject = { key: 'value' };
-      const jsonString = typeof jsonObject === 'string'
-        ? jsonObject
-        : JSON.stringify(jsonObject);
-
-      expect(jsonString).toBe('{"key":"value"}');
-    });
-
-    it('handles string JSON input directly', () => {
-      const jsonString = '{"key": "value"}';
-      const isString = typeof jsonString === 'string';
-
-      expect(isString).toBe(true);
-    });
-  });
-
-  describe('Response parsing', () => {
-    it('parses translation response correctly', () => {
-      const response = {
-        es: [{ original: 'Hello', translated: 'Hola' }],
-        fr: [{ original: 'Hello', translated: 'Bonjour' }],
-      };
-
-      expect(response.es[0].translated).toBe('Hola');
-      expect(response.fr[0].translated).toBe('Bonjour');
-    });
-
-    it('parses JSON translation response correctly', () => {
-      const response = {
-        es: { greeting: 'Hola', farewell: 'Adiós' },
-        fr: { greeting: 'Bonjour', farewell: 'Au revoir' },
-      };
-
-      expect(response.es.greeting).toBe('Hola');
-      expect(response.fr.farewell).toBe('Au revoir');
-    });
-
-    it('extracts translations for locale file pattern', () => {
-      const result = {
-        es: { title: 'Mi App' },
-        fr: { title: 'Mon App' },
-        warnings: [],
-      };
-
-      const targetLanguages = ['es', 'fr'];
-      const translations = {};
-
-      for (const lang of targetLanguages) {
-        if (result[lang]) {
-          translations[lang] = result[lang];
-        }
-      }
-
-      expect(translations).toHaveProperty('es');
-      expect(translations).toHaveProperty('fr');
-      expect(translations).not.toHaveProperty('warnings');
-    });
-  });
-
-  describe('Input validation', () => {
-    it('validates text is required', () => {
-      const validateText = (text) => {
-        if (!text) throw new Error('Text is required');
-        return true;
-      };
-
-      expect(() => validateText()).toThrow('Text is required');
-      expect(validateText('Hello')).toBe(true);
-    });
-
-    it('validates target languages are required', () => {
-      const validateLanguages = (languages) => {
-        if (!languages?.length) throw new Error('At least one target language is required');
-        return true;
-      };
-
-      expect(() => validateLanguages()).toThrow('At least one target language is required');
-      expect(() => validateLanguages([])).toThrow('At least one target language is required');
-      expect(validateLanguages(['es'])).toBe(true);
-    });
-  });
-
-  describe('Error handling', () => {
-    it('detects missing API key', () => {
-      const apiKey = undefined;
-      const hasApiKey = !!apiKey;
-
-      expect(hasApiKey).toBe(false);
-    });
-
-    it('constructs proper error message for missing API key', () => {
-      const errorMessage = 'SHIPI18N_API_KEY is not set. Get your free key at https://shipi18n.com';
-
-      expect(errorMessage).toContain('SHIPI18N_API_KEY');
-      expect(errorMessage).toContain('shipi18n.com');
-    });
-
-    it('handles non-ok response status', () => {
-      const response = { ok: false, status: 401 };
-      const isError = !response.ok;
-
-      expect(isError).toBe(true);
-      expect(response.status).toBe(401);
-    });
-
-    it('extracts error message from response', () => {
-      const errorResponse = { message: 'Invalid API key' };
-      const errorMessage = errorResponse.message || 'API error';
-
-      expect(errorMessage).toBe('Invalid API key');
-    });
-
-    it('provides fallback error message', () => {
-      const errorResponse = {};
-      const status = 500;
-      const errorMessage = errorResponse.message || `API error: ${status}`;
-
-      expect(errorMessage).toBe('API error: 500');
-    });
-  });
-
-  describe('Headers', () => {
-    it('includes required headers', () => {
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-API-Key': mockEnv.SHIPI18N_API_KEY,
-      };
-
-      expect(headers['Content-Type']).toBe('application/json');
-      expect(headers['X-API-Key']).toBe('sk_test_123456');
-    });
-  });
-});
-
-describe('Next.js Integration Patterns', () => {
-  describe('Server Component pattern', () => {
-    it('validates async data fetching pattern', async () => {
-      // Simulates Server Component async pattern
-      const fetchTranslations = async () => ({
-        es: { welcome: 'Bienvenido' },
+describe('Shipi18n API Client', () => {
+  describe('setConfig and resetConfig', () => {
+    test('setConfig sets the configuration', () => {
+      setConfig({
+        apiKey: 'test_key',
+        apiUrl: 'https://test.api.com'
       });
 
-      const translations = await fetchTranslations();
-
-      expect(translations.es.welcome).toBe('Bienvenido');
+      const config = getConfig();
+      expect(config.apiKey).toBe('test_key');
+      expect(config.apiUrl).toBe('https://test.api.com');
     });
 
-    it('validates error boundary pattern', () => {
-      const handleError = (error) => {
-        if (error.message.includes('API')) {
-          return { fallback: true, message: error.message };
-        }
-        throw error;
-      };
+    test('resetConfig clears the configuration', async () => {
+      setConfig({ apiKey: 'test_key', apiUrl: 'https://test.api.com' });
+      resetConfig();
 
-      const result = handleError(new Error('API error: 401'));
-
-      expect(result.fallback).toBe(true);
+      await expect(translate({
+        text: 'Hello',
+        targetLanguages: ['es']
+      })).rejects.toThrow('SHIPI18N_API_KEY is not set');
     });
   });
 
-  describe('Client Component pattern', () => {
-    it('validates useState pattern for translations', () => {
-      // Simulates React useState pattern
-      let translations = null;
-      const setTranslations = (value) => { translations = value; };
+  describe('getConfig', () => {
+    test('returns test config when set', () => {
+      setConfig({ apiKey: 'test_key', apiUrl: 'https://custom.api.com' });
 
-      setTranslations({ es: 'Hola' });
+      const config = getConfig();
 
-      expect(translations).toEqual({ es: 'Hola' });
+      expect(config.apiKey).toBe('test_key');
+      expect(config.apiUrl).toBe('https://custom.api.com');
     });
 
-    it('validates loading state pattern', () => {
-      let isLoading = true;
-      const setLoading = (value) => { isLoading = value; };
+    test('returns default API URL when no config set', () => {
+      // In test environment, process.env won't have these values
+      const config = getConfig();
 
-      expect(isLoading).toBe(true);
-      setLoading(false);
-      expect(isLoading).toBe(false);
+      expect(config.apiUrl).toBe('https://x9527l3blg.execute-api.us-east-1.amazonaws.com');
     });
   });
 
-  describe('Environment configuration', () => {
-    it('distinguishes server vs client environment variables', () => {
-      // Server-side pattern (no NEXT_PUBLIC_ prefix)
-      const serverConfig = {
-        apiKey: mockEnv.SHIPI18N_API_KEY,
-        apiUrl: mockEnv.SHIPI18N_API_URL,
+  describe('apiRequest', () => {
+    test('throws error when API key is not set', async () => {
+      await expect(apiRequest('/translate', { method: 'POST' }))
+        .rejects.toThrow('SHIPI18N_API_KEY is not set');
+    });
+
+    test('makes correct API call', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = { result: 'success' };
+
+      await apiRequest('/translate', {
+        method: 'POST',
+        body: JSON.stringify({ text: 'Hello' })
+      });
+
+      expect(lastFetchCall.url).toBe('https://api.test.com/api/translate');
+      expect(lastFetchCall.options.method).toBe('POST');
+      expect(lastFetchCall.options.headers['Content-Type']).toBe('application/json');
+      expect(lastFetchCall.options.headers['X-API-Key']).toBe('sk_test_123');
+    });
+
+    test('throws error on non-ok response', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchOk = false;
+      mockFetchResponse = { message: 'Invalid API key' };
+
+      await expect(apiRequest('/translate', { method: 'POST' }))
+        .rejects.toThrow('Invalid API key');
+    });
+
+    test('provides fallback error message', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchOk = false;
+      mockFetchResponse = {};
+
+      await expect(apiRequest('/translate', { method: 'POST' }))
+        .rejects.toThrow('API error: 401');
+    });
+  });
+
+  describe('translate', () => {
+    test('throws error when text is empty', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+
+      await expect(translate({
+        text: '',
+        targetLanguages: ['es']
+      })).rejects.toThrow('Text is required');
+    });
+
+    test('throws error when targetLanguages is empty', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+
+      await expect(translate({
+        text: 'Hello',
+        targetLanguages: []
+      })).rejects.toThrow('At least one target language is required');
+    });
+
+    test('makes correct API call with all parameters', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = { es: [{ original: 'Hello', translated: 'Hola' }] };
+
+      await translate({
+        text: 'Hello',
+        sourceLanguage: 'en',
+        targetLanguages: ['es'],
+        preservePlaceholders: true,
+        enablePluralization: false
+      });
+
+      const body = JSON.parse(lastFetchCall.options.body);
+      expect(body.text).toBe('Hello');
+      expect(body.sourceLanguage).toBe('en');
+      expect(body.targetLanguages).toEqual(['es']);
+      expect(body.preservePlaceholders).toBe(true);
+      expect(body.enablePluralization).toBe(false);
+    });
+
+    test('returns translation response', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = {
+        es: [{ original: 'Hello', translated: 'Hola' }],
+        fr: [{ original: 'Hello', translated: 'Bonjour' }]
       };
 
-      // Client-side pattern (requires NEXT_PUBLIC_ prefix)
-      const clientConfig = {
-        apiKey: process.env.NEXT_PUBLIC_SHIPI18N_API_KEY,
-        apiUrl: process.env.NEXT_PUBLIC_SHIPI18N_API_URL,
+      const result = await translate({
+        text: 'Hello',
+        targetLanguages: ['es', 'fr']
+      });
+
+      expect(result.es[0].translated).toBe('Hola');
+      expect(result.fr[0].translated).toBe('Bonjour');
+    });
+
+    test('uses default values', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = { es: {} };
+
+      await translate({
+        text: 'Hello',
+        targetLanguages: ['es']
+      });
+
+      const body = JSON.parse(lastFetchCall.options.body);
+      expect(body.sourceLanguage).toBe('en');
+      expect(body.preservePlaceholders).toBe(true);
+      expect(body.enablePluralization).toBe(true);
+    });
+  });
+
+  describe('translateJSON', () => {
+    test('accepts object JSON input', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = { es: { greeting: 'Hola' } };
+
+      await translateJSON({
+        json: { greeting: 'Hello' },
+        targetLanguages: ['es']
+      });
+
+      const body = JSON.parse(lastFetchCall.options.body);
+      expect(body.text).toBe('{"greeting":"Hello"}');
+      expect(body.outputFormat).toBe('json');
+    });
+
+    test('accepts string JSON input', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = { es: { greeting: 'Hola' } };
+
+      await translateJSON({
+        json: '{"greeting":"Hello"}',
+        targetLanguages: ['es']
+      });
+
+      const body = JSON.parse(lastFetchCall.options.body);
+      expect(body.text).toBe('{"greeting":"Hello"}');
+    });
+
+    test('returns translated JSON', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = {
+        es: { greeting: 'Hola', farewell: 'Adiós' }
       };
 
-      expect(serverConfig.apiKey).toBeDefined();
-      // Client-side won't have values unless NEXT_PUBLIC_ env vars are set
+      const result = await translateJSON({
+        json: { greeting: 'Hello', farewell: 'Goodbye' },
+        targetLanguages: ['es']
+      });
+
+      expect(result.es.greeting).toBe('Hola');
+      expect(result.es.farewell).toBe('Adiós');
+    });
+  });
+
+  describe('translateLocaleFile', () => {
+    test('translates content and returns by language', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = {
+        es: { title: 'Mi App' },
+        fr: { title: 'Mon App' }
+      };
+
+      const result = await translateLocaleFile({
+        content: { title: 'My App' },
+        targetLanguages: ['es', 'fr']
+      });
+
+      expect(result.es.title).toBe('Mi App');
+      expect(result.fr.title).toBe('Mon App');
+    });
+
+    test('excludes missing languages from result', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = {
+        es: { title: 'Mi App' }
+        // fr is missing
+      };
+
+      const result = await translateLocaleFile({
+        content: { title: 'My App' },
+        targetLanguages: ['es', 'fr']
+      });
+
+      expect(result.es).toBeDefined();
+      expect(result.fr).toBeUndefined();
+    });
+  });
+
+  describe('healthCheck', () => {
+    test('calls the health endpoint', async () => {
+      setConfig({ apiKey: 'sk_test_123', apiUrl: 'https://api.test.com' });
+      mockFetchResponse = { status: 'healthy', version: '1.0.0' };
+
+      const result = await healthCheck();
+
+      expect(lastFetchCall.url).toBe('https://api.test.com/api/health');
+      expect(result.status).toBe('healthy');
+    });
+  });
+
+  describe('getTranslations', () => {
+    test('returns empty object (placeholder implementation)', async () => {
+      const result = await getTranslations('es', 'common');
+
+      expect(result).toEqual({});
     });
   });
 });
 
-/**
- * Snapshot tests for translation response structures
- */
 describe('Translation Response Snapshots', () => {
-  it('should match expected JSON translation response structure', () => {
+  test('should match expected JSON translation response structure', () => {
     const translationResponse = {
       es: {
         common: {
           greeting: 'Hola',
           farewell: 'Adiós',
-          buttons: { submit: 'Enviar', cancel: 'Cancelar' },
-        },
+          buttons: { submit: 'Enviar', cancel: 'Cancelar' }
+        }
       },
       fr: {
         common: {
           greeting: 'Bonjour',
           farewell: 'Au revoir',
-          buttons: { submit: 'Soumettre', cancel: 'Annuler' },
-        },
-      },
+          buttons: { submit: 'Soumettre', cancel: 'Annuler' }
+        }
+      }
     };
 
     expect(translationResponse).toMatchSnapshot();
   });
 
-  it('should match expected pluralization response structure', () => {
+  test('should match expected pluralization response structure', () => {
     const pluralResponse = {
       ru: {
         items_one: '{{count}} элемент',
         items_few: '{{count}} элемента',
         items_many: '{{count}} элементов',
-        items_other: '{{count}} элементов',
-      },
+        items_other: '{{count}} элементов'
+      }
     };
 
     expect(pluralResponse).toMatchSnapshot();
   });
 
-  it('should match expected text translation response structure', () => {
+  test('should match expected text translation response structure', () => {
     const textResponse = {
       es: [
         { original: 'Hello, world!', translated: '¡Hola, mundo!' },
-        { original: 'Welcome', translated: 'Bienvenido' },
-      ],
+        { original: 'Welcome', translated: 'Bienvenido' }
+      ]
     };
 
     expect(textResponse).toMatchSnapshot();
-  });
-});
-
-describe('Placeholder Preservation', () => {
-  it('preserves i18next placeholders in translations', () => {
-    const input = 'Hello, {{name}}!';
-    const output = 'Hola, {{name}}!';
-
-    expect(output).toContain('{{name}}');
-  });
-
-  it('preserves React Intl placeholders', () => {
-    const input = 'Hello, {name}!';
-    const output = 'Hola, {name}!';
-
-    expect(output).toContain('{name}');
-  });
-
-  it('preserves multiple placeholders', () => {
-    const output = '{{user}} tiene {{count}} mensajes';
-
-    expect(output).toContain('{{user}}');
-    expect(output).toContain('{{count}}');
-  });
-});
-
-describe('Language Codes', () => {
-  it('accepts standard language codes', () => {
-    const validCodes = ['es', 'fr', 'de', 'ja', 'zh', 'pt', 'ru', 'ar', 'ko', 'it'];
-
-    validCodes.forEach(code => {
-      expect(code).toMatch(/^[a-z]{2}$/);
-    });
-  });
-
-  it('accepts regional language codes', () => {
-    const regionalCodes = ['zh-CN', 'zh-TW', 'pt-BR', 'en-US', 'en-GB'];
-
-    regionalCodes.forEach(code => {
-      expect(code).toMatch(/^[a-z]{2}-[A-Z]{2}$/);
-    });
   });
 });

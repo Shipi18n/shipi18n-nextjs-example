@@ -5,8 +5,30 @@
  * Uses native fetch API for zero dependencies.
  */
 
-// Get config from environment variables
-const getConfig = () => {
+// Configuration - can be overridden for testing
+let testConfig = null
+
+/**
+ * Set configuration (useful for testing)
+ * @param {Object} newConfig - Configuration object
+ * @param {string} newConfig.apiKey - API key
+ * @param {string} newConfig.apiUrl - API URL
+ */
+export function setConfig(newConfig) {
+  testConfig = newConfig
+}
+
+/**
+ * Reset configuration to defaults (useful for testing)
+ */
+export function resetConfig() {
+  testConfig = null
+}
+
+// Get config from environment variables or test override
+export const getConfig = () => {
+  if (testConfig) return testConfig
+
   // Server-side (no NEXT_PUBLIC_ prefix needed)
   if (typeof window === 'undefined') {
     return {
@@ -24,7 +46,7 @@ const getConfig = () => {
 /**
  * Make authenticated API request
  */
-async function apiRequest(endpoint, options = {}) {
+export async function apiRequest(endpoint, options = {}) {
   const { apiKey, apiUrl } = getConfig()
 
   if (!apiKey) {
@@ -167,5 +189,14 @@ export async function getTranslations(locale, namespace = 'common') {
   return {}
 }
 
-// Export config getter for debugging
-export { getConfig }
+export default {
+  translate,
+  translateJSON,
+  translateLocaleFile,
+  healthCheck,
+  getTranslations,
+  getConfig,
+  setConfig,
+  resetConfig,
+  apiRequest
+}
