@@ -1,7 +1,7 @@
 # Shipi18n Next.js Example
 
 [![CI](https://github.com/Shipi18n/shipi18n-nextjs-example/actions/workflows/ci.yml/badge.svg)](https://github.com/Shipi18n/shipi18n-nextjs-example/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub last commit](https://img.shields.io/github/last-commit/Shipi18n/shipi18n-nextjs-example)](https://github.com/Shipi18n/shipi18n-nextjs-example)
 
 A Next.js 14 application demonstrating how to integrate the [Shipi18n](https://shipi18n.com) translation API using the App Router.
@@ -284,7 +284,7 @@ This example uses this pattern - all client-side examples call `/api/translate` 
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE). License - see [LICENSE](LICENSE) for details.
 
 ---
 
