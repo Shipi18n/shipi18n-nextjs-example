@@ -1,291 +1,107 @@
 # Shipi18n Next.js Example
 
-[![CI](https://github.com/Shipi18n/shipi18n-nextjs-example/actions/workflows/ci.yml/badge.svg)](https://github.com/Shipi18n/shipi18n-nextjs-example/actions)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub last commit](https://img.shields.io/github/last-commit/Shipi18n/shipi18n-nextjs-example)](https://github.com/Shipi18n/shipi18n-nextjs-example)
+A Next.js **App Router** app whose message files are translated **at build time** by [`@shipi18n/cli`](https://www.npmjs.com/package/@shipi18n/cli), using your own OpenAI or Anthropic key.
 
-A Next.js 14 application demonstrating how to integrate the [Shipi18n](https://shipi18n.com) translation API using the App Router.
+Every locale is statically pre-rendered. There is no translation call at request time, no runtime dependency on Shipi18n, and no API key anywhere near the client.
 
-> **Get Started in 30 Seconds**: Sign up at [shipi18n.com](https://shipi18n.com) to get your free API key instantly. No credit card required!
+## Why it is built this way
 
-## Features
+```
+npm run i18n     →  messages/en.json  →  es.json, fr.json, de.json
+npm run build    →  runs i18n, then next build
+```
 
-This example demonstrates multiple integration patterns:
+Next.js inlines any `NEXT_PUBLIC_`-prefixed variable into the client bundle. An LLM key there is a key published to every visitor — so the key is only ever read by the build step.
 
-- **Client-Side Translation** - Interactive translations in React Client Components
-- **Server-Side Translation** - SEO-friendly translations in Server Components
-- **File Translation** - Upload `en.json` → Download `es.json`, `fr.json`, etc.
-- **API Route Proxy** - Keep your API key secure on the server
-- **100+ Languages** - Translate to any language Google Translate supports
-- **Placeholder Preservation** - Keeps `{name}`, `{{value}}`, `%s` intact
-- **i18next Pluralization** - Auto-generates CLDR-compliant plural forms
-
-## Prerequisites
-
-- Node.js 18+ installed
-- Free API key from [shipi18n.com](https://shipi18n.com)
+> An earlier version of this example used `NEXT_PUBLIC_SHIPI18N_API_KEY` against the hosted Shipi18n API. That service is gone and the pattern was unsafe, so the app was restructured.
 
 ## Quick Start
-
-### 1. Get Your Free API Key
-
-Visit [shipi18n.com](https://shipi18n.com) and sign up:
-
-- **Free tier**: 100 translation keys, 3 languages
-- **No credit card** required
-- **Instant access**
-
-### 2. Clone and Install
 
 ```bash
 git clone https://github.com/Shipi18n/shipi18n-nextjs-example.git
 cd shipi18n-nextjs-example
 npm install
-```
 
-### 3. Configure Environment
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local`:
-
-```env
-# Only ONE key needed!
-SHIPI18N_API_KEY=sk_live_your_api_key_here
-```
-
-> **Note**: You only need `SHIPI18N_API_KEY`. See [Environment Variables](#environment-variables) for details.
-
-### 4. Run Development Server
-
-```bash
+cp .env.example .env.local     # then set ANTHROPIC_API_KEY
+npm run i18n                   # generate es/fr/de from en.json
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Generated messages are committed, so `npm run dev` works without a key. You need one only when `messages/en.json` changes.
 
-## Project Structure
+## Structure
 
 ```
-shipi18n-nextjs-example/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── translate/
-│   │   │       └── route.js          # API route proxy
-│   │   ├── examples/
-│   │   │   ├── client-side/
-│   │   │   │   └── page.js           # Client Component example
-│   │   │   ├── server-side/
-│   │   │   │   └── page.js           # Server Component example
-│   │   │   ├── file-translation/
-│   │   │   │   └── page.js           # File upload/download
-│   │   │   └── api-route/
-│   │   │       └── page.js           # API route demo
-│   │   ├── layout.js
-│   │   ├── page.js                   # Home page
-│   │   └── globals.css
-│   └── lib/
-│       └── shipi18n.js               # API client
-├── .env.example
-├── package.json
-└── README.md
+messages/
+├── en.json              # the only file you edit
+├── es.json              # generated — commit these
+├── fr.json
+└── de.json
+src/
+├── middleware.js        # redirects / → /en (or the visitor's language)
+├── lib/i18n.js          # dictionary loader + translate()
+├── components/
+│   └── LanguageSwitcher.jsx   # client component, swaps the locale segment
+└── app/
+    └── [locale]/
+        ├── layout.js    # generateStaticParams + metadata per locale
+        └── page.js      # server component, no client JS for the copy
 ```
 
-## Usage Examples
+### Static rendering
 
-### Client-Side Translation
+`generateStaticParams` returns every locale, so `next build` emits `/en`, `/es`, `/fr` and `/de` as static HTML:
 
-```jsx
-'use client'
-import { translate } from '@/lib/shipi18n'
-
-export default function MyComponent() {
-  const [result, setResult] = useState(null)
-
-  const handleTranslate = async () => {
-    const translations = await translate({
-      text: 'Hello, World!',
-      targetLanguages: ['es', 'fr', 'de'],
-    })
-    setResult(translations)
-  }
-
-  return <button onClick={handleTranslate}>Translate</button>
-}
+```
+● /[locale]
+  ├ /en
+  ├ /es
+  ├ /fr
+  └ /de
 ```
 
-### Server-Side Translation (Server Component)
+### Metadata per locale
 
-```jsx
-// No 'use client' - this is a Server Component
-import { translate } from '@/lib/shipi18n'
+`generateMetadata` reads the same dictionary, so `<title>` and `<meta description>` are translated too — which is the part that actually affects search results.
 
-export default async function Page() {
-  const translations = await translate({
-    text: 'Welcome to our app!',
-    targetLanguages: ['es', 'fr'],
-  })
+## The translate helper
 
-  return (
-    <div>
-      <p>Spanish: {translations.es[0].translated}</p>
-      <p>French: {translations.fr[0].translated}</p>
-    </div>
-  )
-}
-```
-
-### API Route Proxy
+`src/lib/i18n.js` is deliberately tiny — about 40 lines, no dependency:
 
 ```js
-// src/app/api/translate/route.js
-import { translate } from '@/lib/shipi18n'
+const dict = await getDictionary(locale)
 
-export async function POST(request) {
-  const { text, targetLanguages } = await request.json()
-
-  const result = await translate({
-    text,
-    targetLanguages,
-    preservePlaceholders: true,
-  })
-
-  return Response.json(result)
-}
+translate(dict, 'home.greeting', { name: 'Ada' })   // "Welcome back, Ada!"
+translate(dict, 'home.tasks', { count: 1 })         // "You have 1 open task"
+translate(dict, 'home.tasks', { count: 4 })         // "You have 4 open tasks"
 ```
 
-### JSON File Translation
+Plurals use the i18next convention (`key_one` / `key_other`), so these message files drop straight into `next-intl` or `i18next` if you later want a full library.
 
-```jsx
-import { translateJSON } from '@/lib/shipi18n'
+Missing keys render as the key itself rather than an empty string, so a gap is obvious in review instead of invisible in production.
 
-const localeFile = {
-  greeting: 'Hello',
-  farewell: 'Goodbye',
-}
+## Adding a language
 
-const translations = await translateJSON({
-  json: localeFile,
-  targetLanguages: ['es', 'fr'],
-})
+Add it to the `i18n` script and to `LOCALES` in `src/lib/i18n.js`, then:
 
-// Result:
-// {
-//   es: { greeting: 'Hola', farewell: 'Adiós' },
-//   fr: { greeting: 'Bonjour', farewell: 'Au revoir' }
-// }
+```bash
+npm run i18n
 ```
 
-### i18next Pluralization
+`--incremental` means existing languages are not re-translated and their files stay byte-identical.
 
-Shipi18n auto-generates CLDR-compliant plural forms based on each target language's rules:
+## Tests
 
-- **English/Spanish**: `_one`, `_other` (2 forms)
-- **Russian**: `_one`, `_few`, `_many`, `_other` (4 forms)
-- **Arabic**: `_zero`, `_one`, `_two`, `_few`, `_many`, `_other` (6 forms)
-
-```jsx
-import { translateJSON } from '@/lib/shipi18n'
-
-const result = await translateJSON({
-  json: {
-    "item_one": "{{count}} item",
-    "item_other": "{{count}} items"
-  },
-  targetLanguages: ['es', 'ru'],
-  enablePluralization: true  // enabled by default
-})
-
-// Spanish (2 forms): { item_one: "{{count}} artículo", item_other: "{{count}} artículos" }
-// Russian (4 forms): { item_one, item_few, item_many, item_other } - auto-generated!
+```bash
+npm test
 ```
 
-## API Reference
+17 tests, no key or network required: message files match `en` key for key, placeholders survive translation, both plural forms exist in every language, and `translate()` handles interpolation, plural selection, missing keys and missing variables.
 
-### `translate(options)`
+## Deploying
 
-Translate text to multiple languages.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `text` | string | Yes | Text to translate |
-| `sourceLanguage` | string | No | Source language (default: 'en') |
-| `targetLanguages` | string[] | Yes | Target language codes |
-| `preservePlaceholders` | boolean | No | Keep placeholders intact (default: true) |
-| `enablePluralization` | boolean | No | Auto-generate i18next plural forms (default: true) |
-
-### `translateJSON(options)`
-
-Translate JSON while preserving structure.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `json` | object/string | Yes | JSON to translate |
-| `sourceLanguage` | string | No | Source language (default: 'en') |
-| `targetLanguages` | string[] | Yes | Target language codes |
-| `preservePlaceholders` | boolean | No | Keep placeholders intact (default: true) |
-| `enablePluralization` | boolean | No | Auto-generate i18next plural forms (default: true) |
-
-## Environment Variables
-
-**You only need ONE API key!**
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `SHIPI18N_API_KEY` | Your API key (server-side only) | **Yes** |
-| `SHIPI18N_API_URL` | API URL (optional) | No |
-
-### Why only one key?
-
-In Next.js, environment variables are **server-side only by default**. The `SHIPI18N_API_KEY` is:
-- Accessible in API routes, Server Components, and middleware
-- **Never exposed to the browser** - your key stays secure
-
-### What about `NEXT_PUBLIC_` variables?
-
-The `NEXT_PUBLIC_` prefix tells Next.js to expose a variable to the browser. **We don't recommend this** because:
-- Your API key would be visible in the browser's page source
-- Anyone could copy your key and use your quota
-
-### Recommended Architecture
-
-```
-Browser (Client Component)
-    ↓
-/api/translate (API Route - uses SHIPI18N_API_KEY securely)
-    ↓
-Shipi18n API
-```
-
-This example uses this pattern - all client-side examples call `/api/translate` instead of calling Shipi18n directly.
-
-## Pricing
-
-| Tier | Price | Keys | Languages | Rate Limit |
-|------|-------|------|-----------|------------|
-| **FREE** | $0/mo | 100 | 3 | 10 req/min |
-| **STARTER** | $9/mo | 500 | 10 | 60 req/min |
-| **PRO** | $29/mo | 10,000 | 100+ | 300 req/min |
-| **ENTERPRISE** | Custom | Unlimited | Custom | 1000+ req/min |
-
-## Learn More
-
-- [Shipi18n Documentation](https://shipi18n.com/docs)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [React i18n Best Practices](https://shipi18n.com/blog/react-i18n)
-
-## Related Projects
-
-- [shipi18n-react-example](https://github.com/Shipi18n/shipi18n-react-example) - Vite + React example
-- [shipi18n-cli](https://github.com/Shipi18n/shipi18n-cli) - Command-line tool
+Set `ANTHROPIC_API_KEY` as a **build-time** environment variable (on Vercel: Project Settings → Environment Variables). Because generated messages are committed, a deploy will still succeed if the key is absent — it just will not pick up new strings.
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE). License - see [LICENSE](LICENSE) for details.
-
----
-
-Built with [Shipi18n](https://shipi18n.com) - Smart translation API for developers
+Apache-2.0 — see [LICENSE](LICENSE).
